@@ -37,10 +37,11 @@ def show_images(image_array):
 class Contentloss(nn.Module):
     def __init__(self, target):
         super(Contentloss, self).__init__() #pytorch syntax for writing modules, look at this
-        self.target = target.detach() #WHY? target is not a variable so if left attached will raise error when forward method called
+        self.target = target.detach() #target is not a variable so if left attached will raise error when forward method called
     def forward(self, input):
         self.loss = nn.functional.mse_loss(input, self.target)
         return input
+
 
 def gram(feature_maps): #refer to https://www.youtube.com/watch?v=DEK-W5cxG-g for why it is calculated like this
     n_batch, n_maps, h, w = feature_maps.size()
@@ -49,8 +50,9 @@ def gram(feature_maps): #refer to https://www.youtube.com/watch?v=DEK-W5cxG-g fo
 
     matrix = torch.mm(flattened_maps, flattened_maps.t()) #this step is the most RAM intensive I believe
 
-    #normalisation as used by Gatys (this is crucial and often forgotten)
+    #normalisation as used by Gatys et al. (this is crucial and often forgotten)
     return matrix/(n_batch*n_maps*h*w)
+
 
 class Styleloss(nn.Module):
     def __init__(self, target):
@@ -74,7 +76,6 @@ class Normalise(nn.Module):
 #we now create a new sequential model with the loss modules placed after the correct layers
 default_content_layers = ['Conv_4']
 default_style_layers = ['Conv_1', 'Conv_2', 'Conv_3', 'Conv_4', 'Conv_5']
-# default_style_layers = ['Conv_1', 'Conv_2', 'Conv_3']
 
 def get_model_and_losses(cnn, norm_mean, norm_std, content_img, style_img, 
                     content_layers=default_content_layers, style_layers=default_style_layers):
@@ -99,7 +100,7 @@ def get_model_and_losses(cnn, norm_mean, norm_std, content_img, style_img,
         elif isinstance(layer, nn.MaxPool2d):
             name = 'AvgPool_{}'.format(i)
 
-            layer = nn.AvgPool2d(2, stride=2, padding=0, ceil_mode=False) #we replace MaxPool layers with AvgPool layers as done by Gatys
+            layer = nn.AvgPool2d(2, stride=2, padding=0, ceil_mode=False) #we replace MaxPool layers with AvgPool layers as done by Gatys et al.
         elif isinstance(layer, BatchNorm2d):
             name = 'BatchNorm_{}'.format(i)
         else:
@@ -154,7 +155,7 @@ def transfer_style(content_img, style_img, input_img, cnn, norm_mean, norm_std, 
         def closure(): #the closure function takes an input and computes losses from it
             input_img.clamp(0,1)
 
-            optimiser.zero_grad() # we need to zero the gradient from the last cycle of the closure fn
+            optimiser.zero_grad() #we need to zero the gradient from the last cycle of the closure fn
             model(input_img)
             style_loss = 0
             content_loss = 0
@@ -169,7 +170,7 @@ def transfer_style(content_img, style_img, input_img, cnn, norm_mean, norm_std, 
             content_loss *= content_weight
 
             loss = style_loss + content_loss
-            loss.backward() #runs backwards method of out loss modules to find the gradient
+            loss.backward() #runs backwards method of our loss modules to find the gradient
 
             i[0] += 1
 
