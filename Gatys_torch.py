@@ -207,7 +207,7 @@ torch.set_default_tensor_type('torch.cuda.FloatTensor')
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('The pytorch device being used is: {}'.format(device))
 
-imsize = 700 #change later, remake gram matrix calculation
+imsize = 700
 content = load_image('Green_turtle_(12197897325).jpg', imsize)
 style = load_image('starry_night.jpg', imsize)
 white_noise = torch.randn([1, 3, imsize, imsize], device=device)
