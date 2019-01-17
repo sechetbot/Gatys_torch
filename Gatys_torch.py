@@ -57,9 +57,9 @@ def gram(feature_maps): #refer to https://www.youtube.com/watch?v=DEK-W5cxG-g fo
 class Styleloss(nn.Module):
     def __init__(self, target):
         super(Styleloss, self).__init__()
-        self.target = target.detach()
+        self.gram_target = gram(target.detach())
     def forward(self, input):
-        self.loss = nn.functional.mse_loss(gram(input), gram(self.target))
+        self.loss = nn.functional.mse_loss(gram(input), self.gram_target)
         return input
 
 
@@ -121,7 +121,7 @@ def get_model_and_losses(cnn, norm_mean, norm_std, content_img, style_img,
             style_losses.append(styleloss_instance)
 
 
-    #trim off the layers after the last content or style loss instance
+    #trim off the layers after the last loss instance
     for i in range(len(model)-1, -1, -1):
         if isinstance(model[i], Contentloss) or isinstance(model[i], Styleloss):
             break
@@ -139,7 +139,7 @@ def get_optimiser(image):
 
 #function that does the transfer
 def transfer_style(content_img, style_img, input_img, cnn, norm_mean, norm_std, n_iter=1000,
-                    style_weight=1e7, content_weight=1):
+                    style_weight=1e7, content_weight=1, tv_weight=0.00005):
     
     start_time = time.time()
     batchtimes = [start_time]
@@ -169,7 +169,11 @@ def transfer_style(content_img, style_img, input_img, cnn, norm_mean, norm_std, 
             style_loss *= style_weight
             content_loss *= content_weight
 
-            loss = style_loss + content_loss
+            batch, channels, h, w = input_img.size()
+            tv_loss = torch.sum(torch.abs(input_img[:, :, :, :-1] - input_img[:, :, :, 1:])) + torch.sum(torch.abs(input_img[:, :, :-1, :] - input_img[:, :, 1:, :]))
+            tv_loss *= tv_weight
+
+            loss = style_loss + content_loss + tv_loss
             loss.backward() #runs backwards method of our loss modules to find the gradient
 
             i[0] += 1
@@ -180,6 +184,7 @@ def transfer_style(content_img, style_img, input_img, cnn, norm_mean, norm_std, 
                 print("run {}:".format(i[0]))
                 print('Style Loss : {}'.format(style_loss))
                 print('Content Loss: {}'.format(content_loss))
+                print('Total Variation Loss: {}'.format(tv_loss))
                 print('Batch time: {}'.format(batch_time))
                 print()
 
@@ -202,12 +207,12 @@ torch.set_default_tensor_type('torch.cuda.FloatTensor')
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('The pytorch device being used is: {}'.format(device))
 
-imsize = 600 #change later, remake gram matrix calculation
-content = load_image('Blue_and_yellow_macaw.jpg', imsize)
-style = load_image('Figure_dans_un_Fauteuil.jpg', imsize)
+imsize = 700 #change later, remake gram matrix calculation
+content = load_image('Green_turtle_(12197897325).jpg', imsize)
+style = load_image('starry_night.jpg', imsize)
 white_noise = torch.randn([1, 3, imsize, imsize], device=device)
 
-# show_images([turtle, scream, white_noise])
+# show_images([content, style, white_noise])
 
 
 
