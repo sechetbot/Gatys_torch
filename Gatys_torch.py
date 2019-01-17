@@ -36,14 +36,14 @@ def show_images(image_array):
 #define content and style losses
 class Contentloss(nn.Module):
     def __init__(self, target):
-        super(Contentloss, self).__init__() #pytorch syntax for writing modules, look at this
+        super(Contentloss, self).__init__() #pytorch syntax for writing modules
         self.target = target.detach() #target is not a variable so if left attached will raise error when forward method called
     def forward(self, input):
         self.loss = nn.functional.mse_loss(input, self.target)
         return input
 
 
-def gram(feature_maps): #refer to https://www.youtube.com/watch?v=DEK-W5cxG-g for why it is calculated like this
+def gram(feature_maps): #calculate gram matrix, this gives a style representation
     n_batch, n_maps, h, w = feature_maps.size()
     flattened_maps = feature_maps.view(n_batch*n_maps, h*w)
     #flattened_maps is a matrix of n flattened feature maps(filter results) stacked up
@@ -63,6 +63,7 @@ class Styleloss(nn.Module):
         return input
 
 
+#preprocesses the images such that they are ready to be taken by the pytorch VGG19 network
 class Normalise(nn.Module):
     def __init__(self, mean, std):
         super(Normalise, self).__init__()
@@ -148,7 +149,7 @@ def transfer_style(content_img, style_img, input_img, cnn, norm_mean, norm_std, 
     model, content_losses, style_losses = get_model_and_losses(cnn, norm_mean, norm_std, content_img, style_img)
     optimiser = get_optimiser(input_img)
 
-    print('Optimising')
+    print('Optimising the image')
     i = [0]
     while i[0] <= n_iter:
 
@@ -169,6 +170,7 @@ def transfer_style(content_img, style_img, input_img, cnn, norm_mean, norm_std, 
             style_loss *= style_weight
             content_loss *= content_weight
 
+            #total variation loss is calculated to smooth the image, this was not done in the pytorch tutorial
             batch, channels, h, w = input_img.size()
             tv_loss = torch.sum(torch.abs(input_img[:, :, :, :-1] - input_img[:, :, :, 1:])) + torch.sum(torch.abs(input_img[:, :, :-1, :] - input_img[:, :, 1:, :]))
             tv_loss *= tv_weight
@@ -204,7 +206,7 @@ def transfer_style(content_img, style_img, input_img, cnn, norm_mean, norm_std, 
 
 torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') #determines if the GPU can be used
 print('The pytorch device being used is: {}'.format(device))
 
 imsize = 700
